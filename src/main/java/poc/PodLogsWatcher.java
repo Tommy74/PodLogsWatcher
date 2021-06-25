@@ -80,9 +80,11 @@ public class PodLogsWatcher implements Watcher<Pod> {
                     status.getState().getTerminated(),
                     pod.getStatus()
             );
+            // TODO: add an optional filter for unwanted PODs / Containers
             final LogWatch lw = client.pods().inNamespace(namespace).withName(pod.getMetadata().getName()).inContainer(status.getName())
                     .tailingLines(10)
-                    .watchLog(System.out);
+                    /*.watchLog(System.out);*/
+                    .watchLog(new ColoredPrintStream(System.out, "\u001b[32m")); // TODO: parametrize color
             logWatches.add(lw);
         }
     }
