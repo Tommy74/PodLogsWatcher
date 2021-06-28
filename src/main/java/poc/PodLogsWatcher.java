@@ -6,9 +6,11 @@ import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.Watcher;
 import io.fabric8.kubernetes.client.WatcherException;
 import io.fabric8.kubernetes.client.dsl.LogWatch;
+import lombok.SneakyThrows;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -21,57 +23,34 @@ public class PodLogsWatcher implements Watcher<Pod> {
     private static final Logger logger = LoggerFactory.getLogger(PodLogsWatcher.class.getSimpleName());
     private KubernetesClient client;
     private String namespace;
+    private PrintStream printStream;
 
-    public PodLogsWatcher(KubernetesClient client, String namespace) {
+    public PodLogsWatcher(KubernetesClient client, String namespace, PrintStream printStream) {
         this.client = client;
         this.namespace = namespace;
-    }
-
-    private void logPodStatus(Pod pod) {
-        for (ContainerStatus status: pod.getStatus().getInitContainerStatuses()) {
-            logger.info("INIT CONTAINER status name {} started {} ready {} \n\t waiting {} \n\t running {} \n\t terminated {} \n\t complete status {}",
-                    status.getName(),
-                    status.getStarted(),
-                    status.getReady(),
-                    status.getState().getWaiting(),
-                    status.getState().getRunning(),
-                    status.getState().getTerminated(),
-                    pod.getStatus()
-            );
-        }
-        for (ContainerStatus status: pod.getStatus().getContainerStatuses()) {
-            logger.info("CONTAINER status name {} started {} ready {} \n\t waiting {} \n\t running {} \n\t terminated {} \n\t complete status {}",
-                    status.getName(),
-                    status.getStarted(),
-                    status.getReady(),
-                    status.getState().getWaiting(),
-                    status.getState().getRunning(),
-                    status.getState().getTerminated(),
-                    pod.getStatus()
-            );
-        }
+        this.printStream = printStream;
     }
 
     private List<ContainerStatus> runningStatusesBefore = Collections.emptyList();
     private List<ContainerStatus> runningStatuses = Collections.emptyList();
     private final List<LogWatch> logWatches = new ArrayList<>();
 
+    @SneakyThrows
     @Override
     public void eventReceived(Action action, Pod pod) {
-        logger.info("\n================================ \n{} {}\n================================\n", action.name(), pod.getMetadata().getName());
+        logger.debug("\n================================ \n{} {}\n================================\n", action.name(), pod.getMetadata().getName());
         runningStatuses = getRunningContainers(pod);
-        logger.info("runningStatuses.size={} names={} runningStatuses={}",
+        logger.debug("runningStatuses.size={} names={} runningStatuses={}",
                 runningStatuses.size(),
                 runningStatuses.stream().map(cs -> cs.getName()).collect(Collectors.joining()),
                 runningStatuses
         );
-        //logPodStatus(pod);
         List<ContainerStatus> newRunning = getNewRunningContainers(runningStatusesBefore, runningStatuses);
-        logger.info("newRunning.size={}", newRunning.size());
+        logger.debug("newRunning.size={}", newRunning.size());
         runningStatusesBefore = runningStatuses;
 
-        for (ContainerStatus status: newRunning) {
-            logger.info("CONTAINER status name {} started {} ready {} \n\t waiting {} \n\t running {} \n\t terminated {} \n\t complete status {}",
+        for (ContainerStatus status : newRunning) {
+            logger.debug("CONTAINER status name {} started {} ready {} \n\t waiting {} \n\t running {} \n\t terminated {} \n\t complete status {}",
                     status.getName(),
                     status.getStarted(),
                     status.getReady(),
@@ -83,14 +62,18 @@ public class PodLogsWatcher implements Watcher<Pod> {
             // TODO: add an optional filter for unwanted PODs / Containers
             final LogWatch lw = client.pods().inNamespace(namespace).withName(pod.getMetadata().getName()).inContainer(status.getName())
                     .tailingLines(10)
-                    /*.watchLog(System.out);*/
-                    .watchLog(new ColoredPrintStream(System.out, "\u001b[32m")); // TODO: parametrize color
+                    .watchLog(new ColoredPrintStream(
+                            printStream,
+                            PodColor.getNext(),
+                            String.format("%s.%s.%s", namespace, pod.getMetadata().getName(), status.getName())
+                    ));
             logWatches.add(lw);
         }
     }
 
     /**
      * All containers that moved into running state
+     *
      * @return
      */
     private List<ContainerStatus> getNewRunningContainers(List<ContainerStatus> before, List<ContainerStatus> now) {
@@ -102,6 +85,7 @@ public class PodLogsWatcher implements Watcher<Pod> {
 
     /**
      * All running containers inside POD
+     *
      * @param pod
      * @return
      */
@@ -123,6 +107,6 @@ public class PodLogsWatcher implements Watcher<Pod> {
     @Override
     public void onClose(WatcherException e) {
         logWatches.stream().forEach(lw -> lw.close());
-        logger.info( "PodLogsWatcher Closed");
+        logger.info("PodLogsWatcher Closed");
     }
 }

@@ -21,7 +21,7 @@ public class PodLogsPOC {
         try (final KubernetesClient client = new DefaultKubernetesClient()) {
 
             // watches for POD's events
-            Watch watch = client.pods().inNamespace(namespace).watch(new PodLogsWatcher(client, namespace));
+            Watch watch = client.pods().inNamespace(namespace).watch(new PodLogsWatcher(client, namespace, System.out));
 
             final Pod pod = client.pods().inNamespace(namespace).create(
                     new PodBuilder()

@@ -6,14 +6,14 @@ import java.io.OutputStream;
 import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
 
-public class ColoredPrintStream extends PrintStream
-{
-    private String COLOR_DEFAULT;
-    private static final String COLOR_RESET = "\u001b[0m";
+public class ColoredPrintStream extends PrintStream {
+    private PodColor color;
+    private String prefix;
 
-    public ColoredPrintStream(OutputStream out, String COLOR_DEFAULT) {
+    public ColoredPrintStream(OutputStream out, PodColor color, String prefix) {
         super(out, true);
-        this.COLOR_DEFAULT = COLOR_DEFAULT;
+        this.color = color;
+        this.prefix = prefix;
     }
 
     @Override
@@ -22,19 +22,18 @@ public class ColoredPrintStream extends PrintStream
             synchronized (this) {
                 if (out == null)
                     throw new IOException("Stream closed");
-
+                out.write(PodColor.ANSI_BRIGHT_BLACK.value.getBytes(StandardCharsets.UTF_8));
+                out.write(String.format("[%s] ", prefix).getBytes(StandardCharsets.UTF_8));
+                out.write(color.value.getBytes(StandardCharsets.UTF_8));
                 out.write(b);
+                out.write(PodColor.ANSI_RESET.value.getBytes(StandardCharsets.UTF_8));
                 if (b == '\n') {
-                    out.write(COLOR_DEFAULT.getBytes(StandardCharsets.UTF_8));
                     out.flush();
-                    out.write(COLOR_RESET.getBytes(StandardCharsets.UTF_8));
                 }
             }
-        }
-        catch (InterruptedIOException x) {
+        } catch (InterruptedIOException x) {
             Thread.currentThread().interrupt();
-        }
-        catch (IOException x) {
+        } catch (IOException x) {
             setError();
         }
     }
@@ -45,16 +44,16 @@ public class ColoredPrintStream extends PrintStream
             synchronized (this) {
                 if (out == null)
                     throw new IOException("Stream closed");
-                out.write(COLOR_DEFAULT.getBytes(StandardCharsets.UTF_8));
+                out.write(PodColor.ANSI_BRIGHT_BLACK.value.getBytes(StandardCharsets.UTF_8));
+                out.write(String.format("[%s] ", prefix).getBytes(StandardCharsets.UTF_8));
+                out.write(color.value.getBytes(StandardCharsets.UTF_8));
                 out.write(buf, off, len);
-                out.write(COLOR_RESET.getBytes(StandardCharsets.UTF_8));
+                out.write(PodColor.ANSI_RESET.value.getBytes(StandardCharsets.UTF_8));
                 out.flush();
             }
-        }
-        catch (InterruptedIOException x) {
+        } catch (InterruptedIOException x) {
             Thread.currentThread().interrupt();
-        }
-        catch (IOException x) {
+        } catch (IOException x) {
             setError();
         }
     }
