@@ -21,7 +21,15 @@ public class PodLogsPOC {
         try (final KubernetesClient client = new DefaultKubernetesClient()) {
 
             // watches for POD's events
-            Watch watch = client.pods().inNamespace(namespace).watch(new PodLogsWatcher(client, namespace, System.out));
+            Watch watch = client.pods().inNamespace(namespace).watch(
+                    PodLogsWatcher
+                            .PodLogsWatcherBuilder()
+                            .withClient(client)
+                            .inNamespace(namespace)
+                            .outputTo(System.out)
+                            .exclude(".*init-skip.*")
+                            .build()
+            );
 
             final Pod pod = client.pods().inNamespace(namespace).create(
                     new PodBuilder()
@@ -35,12 +43,17 @@ public class PodLogsPOC {
                             .addNewInitContainer()
                             .withName("init-a")
                             .withImage("busybox:1.28")
-                            .withCommand("sh", "-c", "for i in 1 2 3 4 5 6 7 8 9 10; do echo 'init-a initializing...'; sleep 2; done")
+                            .withCommand("sh", "-c", "for i in 1 2 3 4 5 6 7; do echo 'init-a initializing...'; sleep 2; done")
                             .endInitContainer()
                             .addNewInitContainer()
                             .withName("init-b")
                             .withImage("busybox:1.28")
-                            .withCommand("sh", "-c", "for i in 1 2 3 4 5 6 7 8 9 10; do echo 'init-b initializing...'; sleep 2; done")
+                            .withCommand("sh", "-c", "for i in 1 2 3 4 5 6 7; do echo 'init-b initializing...'; sleep 2; done")
+                            .endInitContainer()
+                            .addNewInitContainer()
+                            .withName("init-skip")
+                            .withImage("busybox:1.28")
+                            .withCommand("sh", "-c", "for i in 1 2 3 4; do echo 'init-skip initializing...'; sleep 2; done")
                             .endInitContainer()
                             .endSpec()
                             .build()

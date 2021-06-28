@@ -14,6 +14,8 @@ import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import static java.util.stream.Collectors.toList;
@@ -24,11 +26,17 @@ public class PodLogsWatcher implements Watcher<Pod> {
     private KubernetesClient client;
     private String namespace;
     private PrintStream printStream;
+    private Pattern filter;
 
-    public PodLogsWatcher(KubernetesClient client, String namespace, PrintStream printStream) {
+    protected PodLogsWatcher(KubernetesClient client, String namespace, PrintStream printStream, Pattern filter) {
         this.client = client;
         this.namespace = namespace;
         this.printStream = printStream;
+        this.filter = filter;
+    }
+
+    public static PodLogsWatcherBuilder PodLogsWatcherBuilder() {
+        return new PodLogsWatcherBuilder();
     }
 
     private List<ContainerStatus> runningStatusesBefore = Collections.emptyList();
@@ -59,7 +67,14 @@ public class PodLogsWatcher implements Watcher<Pod> {
                     status.getState().getTerminated(),
                     pod.getStatus()
             );
-            // TODO: add an optional filter for unwanted PODs / Containers
+            if (filter != null && filter.matcher(pod.getMetadata().getName()).matches()) {
+                logger.info("Skipped POD {}.{}", namespace, pod.getMetadata().getName());
+                continue;
+            }
+            if (filter != null && filter.matcher(status.getName()).matches()) {
+                logger.info("Skipped Container {}.{}.{}", namespace, pod.getMetadata().getName(), status.getName());
+                continue;
+            }
             final LogWatch lw = client.pods().inNamespace(namespace).withName(pod.getMetadata().getName()).inContainer(status.getName())
                     .tailingLines(10)
                     .watchLog(new ColoredPrintStream(
@@ -68,7 +83,7 @@ public class PodLogsWatcher implements Watcher<Pod> {
                             String.format("%s.%s.%s", namespace, pod.getMetadata().getName(), status.getName())
                     ));
             logWatches.add(lw);
-        }
+    }
     }
 
     /**
