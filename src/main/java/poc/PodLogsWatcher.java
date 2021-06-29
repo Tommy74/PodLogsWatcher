@@ -7,8 +7,7 @@ import io.fabric8.kubernetes.client.Watcher;
 import io.fabric8.kubernetes.client.WatcherException;
 import io.fabric8.kubernetes.client.dsl.LogWatch;
 import lombok.SneakyThrows;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 
 import java.io.PrintStream;
 import java.util.ArrayList;
@@ -23,9 +22,9 @@ import static java.util.stream.Collectors.toList;
  * Watches PODs on a single namespace ans streams logs for all PODs containers to the selected  {@link PrintStream};
  * Each log is prefixed with <code>namespace.pod-name.container-name</code> and colored differently;
  */
+@Slf4j
 public class PodLogsWatcher implements Watcher<Pod> {
 
-    private static final Logger logger = LoggerFactory.getLogger(PodLogsWatcher.class.getSimpleName());
     private KubernetesClient client;
     private String namespace;
     private PrintStream printStream;
@@ -45,19 +44,19 @@ public class PodLogsWatcher implements Watcher<Pod> {
     @SneakyThrows
     @Override
     public void eventReceived(Action action, Pod pod) {
-        logger.debug("\n================================ \n{} {}\n================================\n", action.name(), pod.getMetadata().getName());
+        log.debug("\n================================ \n{} {}\n================================\n", action.name(), pod.getMetadata().getName());
         runningStatuses = getRunningContainers(pod);
-        logger.debug("runningStatuses.size={} names={} runningStatuses={}",
+        log.debug("runningStatuses.size={} names={} runningStatuses={}",
                 runningStatuses.size(),
                 runningStatuses.stream().map(cs -> cs.getName()).collect(Collectors.joining()),
                 runningStatuses
         );
         List<ContainerStatus> newRunning = getNewRunningContainers(runningStatusesBefore, runningStatuses);
-        logger.debug("newRunning.size={}", newRunning.size());
+        log.debug("newRunning.size={}", newRunning.size());
         runningStatusesBefore = runningStatuses;
 
         for (ContainerStatus status : newRunning) {
-            logger.debug("CONTAINER status name {} started {} ready {} \n\t waiting {} \n\t running {} \n\t terminated {} \n\t complete status {}",
+            log.debug("CONTAINER status name {} started {} ready {} \n\t waiting {} \n\t running {} \n\t terminated {} \n\t complete status {}",
                     status.getName(),
                     status.getStarted(),
                     status.getReady(),
@@ -67,11 +66,11 @@ public class PodLogsWatcher implements Watcher<Pod> {
                     pod.getStatus()
             );
             if (filter != null && filter.matcher(pod.getMetadata().getName()).matches()) {
-                logger.info("Skipped POD {}.{}", namespace, pod.getMetadata().getName());
+                log.info("Skipped POD {}.{}", namespace, pod.getMetadata().getName());
                 continue;
             }
             if (filter != null && filter.matcher(status.getName()).matches()) {
-                logger.info("Skipped Container {}.{}.{}", namespace, pod.getMetadata().getName(), status.getName());
+                log.info("Skipped Container {}.{}.{}", namespace, pod.getMetadata().getName(), status.getName());
                 continue;
             }
             final LogWatch lw = client.pods().inNamespace(namespace).withName(pod.getMetadata().getName()).inContainer(status.getName())
@@ -121,7 +120,7 @@ public class PodLogsWatcher implements Watcher<Pod> {
     @Override
     public void onClose(WatcherException e) {
         logWatches.stream().forEach(lw -> lw.close());
-        logger.info("PodLogsWatcher Closed");
+        log.info("PodLogsWatcher Closed");
     }
 
     protected static class Builder {

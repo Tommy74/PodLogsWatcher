@@ -3,5 +3,6 @@
 Install `minikube` and run:
 
 ```shell
-mvn test
+minikube start
+mvn clean test
 ```
