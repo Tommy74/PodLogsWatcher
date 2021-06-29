@@ -14,12 +14,15 @@ import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import static java.util.stream.Collectors.toList;
 
+/**
+ * Watches PODs on a single namespace ans streams logs for all PODs containers to the selected  {@link PrintStream};
+ * Each log is prefixed with <code>namespace.pod-name.container-name</code> and colored differently;
+ */
 public class PodLogsWatcher implements Watcher<Pod> {
 
     private static final Logger logger = LoggerFactory.getLogger(PodLogsWatcher.class.getSimpleName());
@@ -33,10 +36,6 @@ public class PodLogsWatcher implements Watcher<Pod> {
         this.namespace = namespace;
         this.printStream = printStream;
         this.filter = filter;
-    }
-
-    public static PodLogsWatcherBuilder PodLogsWatcherBuilder() {
-        return new PodLogsWatcherBuilder();
     }
 
     private List<ContainerStatus> runningStatusesBefore = Collections.emptyList();
@@ -83,7 +82,7 @@ public class PodLogsWatcher implements Watcher<Pod> {
                             String.format("%s.%s.%s", namespace, pod.getMetadata().getName(), status.getName())
                     ));
             logWatches.add(lw);
-    }
+        }
     }
 
     /**
@@ -91,7 +90,7 @@ public class PodLogsWatcher implements Watcher<Pod> {
      *
      * @return
      */
-    private List<ContainerStatus> getNewRunningContainers(List<ContainerStatus> before, List<ContainerStatus> now) {
+    private List<ContainerStatus> getNewRunningContainers(final List<ContainerStatus> before, final List<ContainerStatus> now) {
         List<String> namesBefore = before.stream().map(cs -> cs.getContainerID()).collect(Collectors.toList());
         return now.stream()
                 .filter(element -> !namesBefore.contains(element.getContainerID()))
@@ -104,7 +103,7 @@ public class PodLogsWatcher implements Watcher<Pod> {
      * @param pod
      * @return
      */
-    private List<ContainerStatus> getRunningContainers(Pod pod) {
+    private List<ContainerStatus> getRunningContainers(final Pod pod) {
         List<ContainerStatus> containers = new ArrayList<>();
         containers.addAll(
                 pod.getStatus().getInitContainerStatuses().stream().filter(
@@ -123,5 +122,43 @@ public class PodLogsWatcher implements Watcher<Pod> {
     public void onClose(WatcherException e) {
         logWatches.stream().forEach(lw -> lw.close());
         logger.info("PodLogsWatcher Closed");
+    }
+
+    protected static class Builder {
+        private KubernetesClient client;
+        private String namespace;
+        private PrintStream printStream = System.out;
+        private Pattern filter;
+
+        protected Builder withClient(final KubernetesClient client) {
+            this.client = client;
+            return this;
+        }
+
+        protected Builder inNamespace(final String namespace) {
+            this.namespace = namespace;
+            return this;
+        }
+
+        protected Builder outputTo(final PrintStream printStream) {
+            this.printStream = printStream;
+            return this;
+        }
+
+        protected Builder exclude(final Pattern filter) {
+            this.filter = filter;
+            return this;
+        }
+
+        protected PodLogsWatcher build() {
+            if (client == null) {
+                throw new IllegalStateException("KubernetesClient must be specified!");
+            }
+            if (namespace == null) {
+                throw new IllegalStateException("namespace must be specified!");
+            }
+
+            return new PodLogsWatcher(client, namespace, printStream, filter);
+        }
     }
 }
