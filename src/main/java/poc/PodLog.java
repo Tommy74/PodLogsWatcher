@@ -11,6 +11,8 @@ import java.lang.annotation.Target;
 @Target(ElementType.TYPE)
 @ExtendWith(PodLogExtension.class)
 public @interface PodLog {
+    String UNASSIGNED = "[unassigned]";
+
     String value() default "[unassigned]";
 
     String filter() default "[unassigned]";

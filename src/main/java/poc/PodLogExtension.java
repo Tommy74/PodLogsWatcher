@@ -34,13 +34,12 @@ public class PodLogExtension implements BeforeAllCallback, AfterAllCallback, Tes
             log.info("filter = \"{}\"", podLog.filter());
             log.info("value = \"{}\"", podLog.value());
 
-
             podLogs = new PodLogs
                     .Builder()
                     .withClient(client)
-                    .inNamespaces(Arrays.asList(podLog.namespaces()))
-                    .outputTo(System.out)
-                    .exclude(podLog.filter())
+                    .inNamespaces(Arrays.asList(PodLog.UNASSIGNED.equals(podLog.namespaces()) ? new String[]{"default"} : podLog.namespaces()))
+                    .outputTo(PodLog.UNASSIGNED.equals(podLog.value()) ? System.out : null)
+                    .exclude(PodLog.UNASSIGNED.equals(podLog.filter()) ? null : podLog.filter())
                     .build();
             podLogs.start();
         }
