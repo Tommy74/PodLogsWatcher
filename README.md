@@ -3,6 +3,8 @@
 This project shows how you can tail all the PODs logs you want leveraging the API offered by 
 [fabric8io/kubernetes-client](https://github.com/fabric8io/kubernetes-client);
 
+Basically it showcases you can do in Java the same thin [stern](https://github.com/wercker/stern) achieves using [GO](https://golang.org/); 
+
 To see it in action, download [minikube](https://minikube.sigs.k8s.io/docs/start/) and run:
 
 ```shell
