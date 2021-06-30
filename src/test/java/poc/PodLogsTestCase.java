@@ -12,7 +12,7 @@ import java.util.stream.Collectors;
 
 @Slf4j
 @PodLog(namespaces = {"default", "default2"}, filter = ".*init-skip.*")
-public class PodLogsPOCTestCase {
+public class PodLogsTestCase {
     @Test
     public void test() throws InterruptedException {
         log.info("START TEST");

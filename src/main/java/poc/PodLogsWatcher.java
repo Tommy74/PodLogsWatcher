@@ -75,11 +75,17 @@ public class PodLogsWatcher implements Watcher<Pod> {
             }
             final LogWatch lw = client.pods().inNamespace(namespace).withName(pod.getMetadata().getName()).inContainer(status.getName())
                     .tailingLines(10)
-                    .watchLog(new ColoredPrintStream(
-                            printStream,
-                            PodColor.getNext(),
-                            String.format("%s.%s.%s", namespace, pod.getMetadata().getName(), status.getName())
-                    ));
+                    .watchLog(
+                            new ColoredPrintStream.Builder()
+                                    .outputTo(printStream)
+                                    .witColor(PodColor.getNext())
+                                    .witPrefix(
+                                            String.format("%s.%s.%s",
+                                                    namespace,
+                                                    pod.getMetadata().getName(),
+                                                    status.getName())
+                                    ).build()
+                    );
             logWatches.add(lw);
         }
     }
